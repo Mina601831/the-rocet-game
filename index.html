@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>رحلة الصاروخ - تحدي الأبطال</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --neon-green: #39ff14;
+            --neon-blue: #00ffff;
+            --neon-red: #ff0055;
+            --bg-color: #050505;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Stars Background */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) infinite ease-in-out;
+            opacity: var(--opacity);
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* Utility Classes */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .w-full { width: 100%; }
+        .h-full { height: 100%; }
+        
+        /* Setup Screen */
+        #setup-screen {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 2rem;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #ddd;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--neon-blue);
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-green));
+            border: none;
+            padding: 15px 30px;
+            color: black;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 1rem;
+        }
+
+        .btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 20px var(--neon-green);
+        }
+
+        .question-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--neon-green);
+        }
+
+        /* Game Screen Layout */
+        #game-screen {
+            display: grid;
+            grid-template-rows: auto 1fr auto; /* Header, Tracks, Controls */
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 50;
+            height: 120px; /* Fixed height for planet area */
+            position: relative;
+        }
+
+        /* Planet Centered */
+        #planet-container {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            width: 140px;
+            height: 140px;
+        }
+
+        #planet-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.5));
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Tracks Area */
+        #tracks-area {
+            display: flex;
+            justify-content: space-around; /* Evenly distributed */
+            align-items: flex-end; /* Align tracks to bottom */
+            position: relative;
+            padding: 0 2rem;
+            height: 100%;
+        }
+
+        .track-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            width: 30%;
+            position: relative;
+        }
+
+        /* Dashed Line */
+        .track-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 10%, rgba(255,255,255,0.2) 90%, rgba(255,255,255,0) 100%);
+            border-radius: 4px;
+            z-index: 0;
+        }
+
+        /* Rocket */
+        .rocket-container {
+            position: absolute;
+            bottom: 0;
+            width: 100px;
+            height: 100px;
+            transition: bottom 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .rocket-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px currentColor);
+            /* Image points UP by default based on preview, no rotation needed if vertical */
+        }
+
+        .flame {
+            width: 20px;
+            height: 40px;
+            background: orange;
+            border-radius: 50%;
+            filter: blur(5px);
+            animation: flicker 0.2s infinite alternate;
+            margin-top: -10px;
+            z-index: -1;
+        }
+
+        @keyframes flicker {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.2); opacity: 1; }
+        }
+
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+            40%, 60% { transform: translate3d(8px, 0, 0); }
+        }
+
+        /* Info Panel (Remaining Questions) */
+        .info-panel {
+            margin-bottom: 1rem;
+            background: rgba(0,0,0,0.5);
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            z-index: 10;
+        }
+        
+        .info-count {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* Control Area (Bottom) */
+        #controls-area {
+            display: flex;
+            justify-content: space-around;
+            padding: 1.5rem 2rem;
+            background: rgba(0,0,0,0.8);
+            border-top: 1px solid var(--glass-border);
+            z-index: 100;
+        }
+
+        .control-btn {
+            width: 30%;
+            padding: 1.5rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-team1 {
+            background: linear-gradient(135deg, #00ffff 0%, #0088ff 100%);
+            color: black;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .btn-team2 {
+            background: linear-gradient(135deg, #39ff14 0%, #00aa00 100%);
+            color: black;
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        /* Question Modal */
+        #question-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border: 2px solid var(--neon-blue);
+            padding: 2rem;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.2);
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .turn-indicator {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .question-text {
+            font-size: 1.8rem;
+            margin-bottom: 2rem;
+            line-height: 1.4;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1.5rem;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: white;
+        }
+
+        .option-btn.correct {
+            background: var(--neon-green);
+            color: black;
+            box-shadow: 0 0 20px var(--neon-green);
+            border-color: var(--neon-green);
+        }
+
+        .option-btn.wrong {
+            background: var(--neon-red);
+            color: white;
+            box-shadow: 0 0 20px var(--neon-red);
+            border-color: var(--neon-red);
+        }
+
+        /* Winner Screen */
+        #winner-screen {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .winner-title {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Background Stars -->
+    <div class="stars" id="stars-container"></div>
+
+    <!-- Setup Screen -->
+    <div id="setup-screen">
+        <div class="container">
+            <h1>🚀 إعداد رحلة الفضاء</h1>
+            
+            <div class="form-group">
+                <label>اسم الفريق الأول (اللون الأزرق)</label>
+                <input type="text" id="team1-name" value="الفريق الأزرق" placeholder="أدخل اسم الفريق">
+            </div>
+
+            <div class="form-group">
+                <label>اسم الفريق الثاني (اللون الأخضر)</label>
+                <input type="text" id="team2-name" value="الفريق الأخضر" placeholder="أدخل اسم الفريق">
+            </div>
+
+            <div class="form-group">
+                <label>عدد الأسئلة الإجمالي (رقم زوجي)</label>
+                <input type="number" id="total-questions" value="4" min="2" step="2">
+            </div>
+
+            <button class="btn" onclick="generateQuestionFields()">التالي: إدخال الأسئلة</button>
+
+            <div id="questions-form-container" class="hidden" style="margin-top: 2rem;">
+                <h2>📝 بنك الأسئلة</h2>
+                <div id="questions-list"></div>
+                <button class="btn" onclick="startGame()">ابدأ التحدي! 🏁</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="hidden">
+        
+        <!-- Header with Planet -->
+        <div id="game-header">
+            <div id="planet-container">
+                <img src="https://a.top4top.io/p_3712urypr1.png" id="planet-img" alt="Planet">
+            </div>
+        </div>
+
+        <!-- Tracks Area -->
+        <div id="tracks-area">
+            
+            <!-- Track 1 -->
+            <div class="track-column">
+                <div class="info-panel" style="border-color: var(--neon-blue); color: var(--neon-blue);">
+                    <div>متبقي للوصول</div>
+                    <div id="remaining-team1" class="info-count">0</div>
+                </div>
+                
+                <div class="track-line" style="background: linear-gradient(to bottom, transparent, var(--neon-blue), transparent);"></div>
+                
+                <div id="rocket1" class="rocket-container" style="bottom: 0%;">
+                    <img src="https://d.top4top.io/p_3712pttp61.png" class="rocket-img" style="filter: hue-rotate(180deg) drop-shadow(0 0 10px var(--neon-blue));">
+                    <div class="flame"></div>
+                </div>
+            </div>
+
+            <!-- Track 2 -->
+            <div class="track-column">
+                <div class="info-panel" style="border-color: var(--neon-green); color: var(--neon-green);">
+                    <div>متبقي للوصول</div>
+                    <div id="remaining-team2" class="info-count">0</div>
+                </div>
+
+                <div class="track-line" style="background: linear-gradient(to bottom, transparent, var(--neon-green), transparent);"></div>
+                
+                <div id="rocket2" class="rocket-container" style="bottom: 0%;">
+                    <img src="https://d.top4top.io/p_3712pttp61.png" class="rocket-img" style="filter: drop-shadow(0 0 10px var(--neon-green));">
+                    <div class="flame"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Area -->
+        <div id="controls-area">
+            <button id="btn-team1" class="control-btn btn-team1" onclick="triggerQuestion(1)">
+                السؤال التالي لـ <span id="btn-name-team1">الفريق 1</span> ❓
+            </button>
+            <button id="btn-team2" class="control-btn btn-team2" onclick="triggerQuestion(2)">
+                السؤال التالي لـ <span id="btn-name-team2">الفريق 2</span> ❓
+            </button>
+        </div>
+    </div>
+
+    <!-- Question Modal -->
+    <div id="question-modal" class="hidden">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+            <div id="turn-indicator" class="turn-indicator">سؤال للفريق...</div>
+            <div id="question-display" class="question-text">نص السؤال هنا؟</div>
+            <div id="options-display" class="options-grid">
+                <!-- Options injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Winner Screen -->
+    <div id="winner-screen" class="hidden">
+        <h1 id="winner-text" class="winner-title">الفريق الفائز!</h1>
+        <button class="btn" style="max-width: 300px;" onclick="location.reload()">لعب مرة أخرى 🔄</button>
+    </div>
+
+    <script>
+        // --- Game State ---
+        const state = {
+            team1: '',
+            team2: '',
+            totalQuestions: 0,
+            questions: [],
+            currentQuestionIndex: 0,
+            scores: { 1: 0, 2: 0 },
+            targetScore: 0,
+            activeTeam: 0 // 1 or 2
+        };
+
+        // --- Setup Logic ---
+        function generateStars() {
+            const container = document.getElementById('stars-container');
+            for(let i=0; i<100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.width = Math.random() * 3 + 'px';
+                star.style.height = star.style.width;
+                star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
+                star.style.setProperty('--opacity', Math.random());
+                container.appendChild(star);
+            }
+        }
+
+        function generateQuestionFields() {
+            const count = parseInt(document.getElementById('total-questions').value);
+            if (isNaN(count) || count % 2 !== 0 || count < 2) {
+                alert('الرجاء إدخال عدد زوجي صحيح (2 على الأقل)');
+                return;
+            }
+
+            state.totalQuestions = count;
+            state.targetScore = count / 2;
+            
+            const list = document.getElementById('questions-list');
+            list.innerHTML = '';
+
+            for(let i=0; i<count; i++) {
+                const div = document.createElement('div');
+                div.className = 'question-card';
+                div.innerHTML = `
+                    <h3>السؤال ${i + 1}</h3>
+                    <div class="form-group">
+                        <input type="text" class="q-text" placeholder="نص السؤال" required>
+                    </div>
+                    <div class="options-grid" style="gap: 0.5rem;">
+                        <input type="text" class="q-opt" placeholder="الخيار 1" required>
+                        <input type="text" class="q-opt" placeholder="الخيار 2" required>
+                        <input type="text" class="q-opt" placeholder="الخيار 3" required>
+                        <input type="text" class="q-opt" placeholder="الخيار 4" required>
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label>الإجابة الصحيحة (رقم الخيار 1-4)</label>
+                        <select class="q-correct">
+                            <option value="0">الخيار 1</option>
+                            <option value="1">الخيار 2</option>
+                            <option value="2">الخيار 3</option>
+                            <option value="3">الخيار 4</option>
+                        </select>
+                    </div>
+                `;
+                list.appendChild(div);
+            }
+
+            document.getElementById('questions-form-container').classList.remove('hidden');
+        }
+
+        function startGame() {
+            // Validate and Save Data
+            state.team1 = document.getElementById('team1-name').value || 'الفريق الأزرق';
+            state.team2 = document.getElementById('team2-name').value || 'الفريق الأخضر';
+            
+            const cards = document.querySelectorAll('.question-card');
+            state.questions = [];
+            
+            let isValid = true;
+            cards.forEach(card => {
+                const text = card.querySelector('.q-text').value;
+                const opts = Array.from(card.querySelectorAll('.q-opt')).map(i => i.value);
+                const correct = parseInt(card.querySelector('.q-correct').value);
+
+                if(!text || opts.some(o => !o)) isValid = false;
+
+                state.questions.push({
+                    text,
+                    options: opts,
+                    correct
+                });
+            });
+
+            if(!isValid) {
+                alert('الرجاء ملء جميع حقول الأسئلة والاختيارات');
+                return;
+            }
+
+            // Switch UI
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            
+            // Init UI Elements
+            document.getElementById('btn-name-team1').innerText = state.team1;
+            document.getElementById('btn-name-team2').innerText = state.team2;
+            
+            updateCounters();
+        }
+
+        function updateCounters() {
+            const rem1 = state.targetScore - state.scores[1];
+            const rem2 = state.targetScore - state.scores[2];
+            
+            document.getElementById('remaining-team1').innerText = Math.max(0, rem1);
+            document.getElementById('remaining-team2').innerText = Math.max(0, rem2);
+        }
+
+        // --- Game Logic ---
+        function triggerQuestion(team) {
+            if (state.currentQuestionIndex >= state.questions.length) {
+                alert("انتهت جميع الأسئلة!");
+                return;
+            }
+
+            state.activeTeam = team;
+            const q = state.questions[state.currentQuestionIndex];
+
+            const modal = document.getElementById('question-modal');
+            const turnText = document.getElementById('turn-indicator');
+            const qText = document.getElementById('question-display');
+            const optsDiv = document.getElementById('options-display');
+
+            // Setup Modal UI
+            const teamName = team === 1 ? state.team1 : state.team2;
+            const teamColor = team === 1 ? 'var(--neon-blue)' : 'var(--neon-green)';
+            
+            turnText.innerHTML = `سؤال لـ <span style="color:${teamColor}">${teamName}</span>`;
+            qText.innerText = q.text;
+            
+            optsDiv.innerHTML = '';
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt;
+                btn.onclick = () => handleAnswer(idx, btn);
+                optsDiv.appendChild(btn);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('question-modal').classList.add('hidden');
+        }
+
+        function handleAnswer(selectedIndex, btnElement) {
+            // Disable all buttons
+            const buttons = document.querySelectorAll('.option-btn');
+            buttons.forEach(b => b.disabled = true);
+
+            const currentQ = state.questions[state.currentQuestionIndex];
+            const isCorrect = selectedIndex === currentQ.correct;
+
+            if (isCorrect) {
+                btnElement.classList.add('correct');
+                updateScore(state.activeTeam);
+                triggerConfetti(false); // Small confetti
+                
+                setTimeout(() => {
+                    closeModal();
+                    state.currentQuestionIndex++;
+                    checkWinCondition();
+                }, 1500);
+            } else {
+                btnElement.classList.add('wrong');
+                // Highlight correct one
+                buttons[currentQ.correct].classList.add('correct');
+                shakeRocket(state.activeTeam);
+                
+                setTimeout(() => {
+                    closeModal();
+                    state.currentQuestionIndex++;
+                    // No score update, just move to next question
+                    checkWinCondition();
+                }, 2000);
+            }
+        }
+
+        function updateScore(team) {
+            state.scores[team]++;
+            updateCounters();
+            
+            // Move Rocket
+            // Max score needed to reach planet is targetScore
+            // We want it to reach ~85% height (touching planet)
+            const percentage = Math.min((state.scores[team] / state.targetScore) * 85, 85);
+            
+            const rocket = document.getElementById(`rocket${team}`);
+            rocket.style.bottom = `${percentage}%`;
+        }
+
+        function shakeRocket(team) {
+            const rocket = document.getElementById(`rocket${team}`);
+            rocket.classList.add('shake');
+            setTimeout(() => rocket.classList.remove('shake'), 500);
+        }
+
+        function triggerConfetti(isBig) {
+            const duration = isBig ? 3000 : 1000;
+            const count = isBig ? 5 : 2;
+            
+            confetti({
+                particleCount: count * 50,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#39ff14', '#00ffff', '#ff0055']
+            });
+        }
+
+        function checkWinCondition() {
+            const t1Finished = state.scores[1] >= state.targetScore;
+            const t2Finished = state.scores[2] >= state.targetScore;
+
+            if (t1Finished || t2Finished) {
+                endGame(t1Finished, t2Finished);
+            } else if (state.currentQuestionIndex >= state.questions.length) {
+                // Out of questions - check score
+                endGame(t1Finished, t2Finished);
+            }
+        }
+
+        function endGame(t1Finished, t2Finished) {
+            const modal = document.getElementById('winner-screen');
+            const text = document.getElementById('winner-text');
+
+            if (t1Finished && t2Finished) {
+                text.innerText = "الأبطال معاً! فوز مشترك 🏆";
+                text.style.color = "white";
+            } else if (t1Finished) {
+                text.innerText = `الفائز: ${state.team1} 🏆`;
+                text.style.color = "var(--neon-blue)";
+            } else if (t2Finished) {
+                text.innerText = `الفائز: ${state.team2} 🏆`;
+                text.style.color = "var(--neon-green)";
+            } else {
+                // If ran out of questions but no one reached target
+                if (state.scores[1] > state.scores[2]) {
+                    text.innerText = `الفائز بالنقاط: ${state.team1}`;
+                    text.style.color = "var(--neon-blue)";
+                } else if (state.scores[2] > state.scores[1]) {
+                    text.innerText = `الفائز بالنقاط: ${state.team2}`;
+                    text.style.color = "var(--neon-green)";
+                } else {
+                    text.innerText = "تعادل! 🤝";
+                    text.style.color = "white";
+                }
+            }
+
+            modal.classList.remove('hidden');
+            
+            // Big celebration loop
+            const end = Date.now() + 5000;
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: ['#39ff14', '#00ffff']
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: ['#39ff14', '#00ffff']
+                });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        // Init
+        generateStars();
+
+    </script>
+</body>
+</html>
