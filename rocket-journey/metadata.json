@@ -1,0 +1,5 @@
+{
+  "name": "Rocket Journey",
+  "description": "An interactive space race game for two teams where they race rockets to a planet.",
+  "requestFramePermissions": []
+}
